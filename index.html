@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>紅の館の惨劇 ｜ SQL捜査ファイル</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* light, slightly blue-tinted palette */
+    --bg:#e7edf6;          /* page: cool near-white */
+    --card:#ffffff;
+    --card-2:#f6f9fd;
+    --field:#f1f5fb;       /* editor surface */
+    --line:#d7e0ed;
+    --line-soft:#e6ecf5;
+    --ink:#1d2738;         /* primary text: slate navy */
+    --ink-soft:#5d6a7e;    /* muted */
+    --slate:#34507a;       /* secondary accent: slate blue (labels/headers) */
+    --slate-deep:#2a3d57;
+    --crimson:#c3122f;     /* the case red */
+    --crimson-deep:#a50f28;
+    --ok:#2f8559;
+    --shadow:0 8px 24px rgba(35,55,90,.10);
+    --shadow-sm:0 2px 8px rgba(35,55,90,.07);
+    --radius:14px;
+    --mono:'JetBrains Mono','SFMono-Regular',Consolas,'Courier New',monospace;
+    --serif:'Shippori Mincho','Yu Mincho',YuMincho,'Hiragino Mincho ProN',serif;
+    --sans:'Zen Kaku Gothic New','Hiragino Sans','Yu Gothic',YuGothic,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--bg);line-height:1.7;-webkit-font-smoothing:antialiased}
+
+  .app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+
+  /* ---------- header ---------- */
+  header{flex:0 0 auto;display:flex;align-items:center;gap:15px;padding:13px 24px;background:var(--card);border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm);z-index:30}
+  .seal{flex:0 0 auto;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+    background:radial-gradient(circle at 35% 28%, #e0394f, #a50f28 72%);color:#fff;
+    font-family:var(--serif);font-weight:800;font-size:22px;transform:rotate(-7deg);
+    box-shadow:inset 0 1px 3px rgba(255,255,255,.4),0 3px 9px rgba(165,15,40,.35)}
+  .htxt{min-width:0}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--slate);text-transform:uppercase;margin:0 0 2px}
+  h1{font-family:var(--serif);font-weight:800;font-size:clamp(19px,2.6vw,26px);margin:0;letter-spacing:.04em;color:var(--ink);white-space:nowrap}
+  .statusbar{margin-left:auto;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);white-space:nowrap}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-soft)}
+  .dot.loading{background:#e3922b;animation:pulse 1.3s infinite}
+  .dot.ready{background:var(--ok)} .dot.err{background:var(--crimson)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(227,146,43,.5)}70%{box-shadow:0 0 0 8px rgba(227,146,43,0)}100%{box-shadow:0 0 0 0 rgba(227,146,43,0)}}
+
+  .panes{flex:1 1 auto;display:flex;min-height:0}
+
+  /* ---------- LEFT: dossier ---------- */
+  .pane{min-height:0}
+  .pane.left{flex:1 1 42%;max-width:560px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;border-right:1px solid var(--line)}
+  .pane.right{flex:1 1 58%;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,#eef3fa,var(--bg))}
+  .pane-head{position:sticky;top:0;z-index:6;padding:11px 24px;font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--slate);
+    background:rgba(255,255,255,.86);backdrop-filter:blur(6px);border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:9px}
+  .left-body{padding:20px 24px 64px}
+
+  section{margin:0 0 24px}
+  .sec-label{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--slate);margin:0 0 11px;display:flex;align-items:center;gap:10px}
+  .sec-label::after{content:"";flex:1;height:1px;background:var(--line)}
+  h2{font-family:var(--serif);font-weight:700;font-size:20px;margin:0 0 9px;color:var(--ink)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+  /* case overview */
+  .case{padding:20px 22px;border-top:3px solid var(--crimson)}
+  .case h2{margin-bottom:6px}
+  .case .lead{margin:.3em 0 1em;color:var(--ink);font-size:14.5px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px}
+  .fact{background:var(--card-2);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+  .fact dt{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--slate);margin-bottom:2px}
+  .fact dd{margin:0;font-weight:700;font-size:13.5px;color:var(--ink)}
+
+  /* practice explainer */
+  .ops{display:flex;flex-direction:column;gap:9px}
+  .op{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 15px;box-shadow:var(--shadow-sm)}
+  .op b.t{display:inline-block;font-size:14.5px;color:var(--ink)}
+  .op .tag{font-family:var(--mono);font-size:10.5px;color:#fff;background:var(--slate);border-radius:5px;padding:2px 7px;margin-right:8px;letter-spacing:.04em}
+  .op p{margin:5px 0 10px;font-size:13px;color:var(--ink-soft)}
+
+  /* steps */
+  .steps{display:flex;flex-direction:column;gap:11px}
+  .step{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--crimson);border-radius:11px;padding:14px 16px;box-shadow:var(--shadow-sm)}
+  .step .num{font-family:var(--mono);font-weight:500;color:var(--crimson);font-size:11.5px;letter-spacing:.14em}
+  .step h3{margin:3px 0 6px;font-size:15.5px;color:var(--ink);font-family:var(--sans);font-weight:700}
+  .step p{margin:0 0 12px;font-size:13.5px;color:var(--ink-soft)}
+
+  .sendbtn{font-family:var(--sans);font-weight:700;font-size:13px;color:var(--slate-deep);background:var(--card-2);border:1px solid var(--line);border-radius:9px;padding:9px 14px;min-height:42px;cursor:pointer;transition:.14s;display:inline-flex;align-items:center;gap:7px}
+  .sendbtn:hover{border-color:var(--slate);background:#fff;color:var(--slate)}
+  .sendbtn:active{transform:translateY(1px)}
+  .sendbtn .arrow{color:var(--crimson);font-weight:800}
+
+  /* toggles */
+  details.tog{background:var(--card);border:1px solid var(--line);border-radius:11px;margin:11px 0;overflow:hidden;box-shadow:var(--shadow-sm)}
+  details.tog>summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:10px;font-size:14.5px}
+  details.tog>summary::-webkit-details-marker{display:none}
+  details.tog>summary .tw{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+  details.tog[open]>summary{border-bottom:1px solid var(--line-soft)}
+  details.tog .body{padding:8px 16px 16px}
+  details.answer{border-color:rgba(195,18,47,.4)}
+  details.answer>summary{color:var(--crimson-deep)} details.answer>summary .ic{color:var(--crimson)}
+  /* PW-protected answer */
+  .lockbox{padding:0;overflow:hidden;border-color:rgba(195,18,47,.35)}
+  .lock-head{display:flex;align-items:center;gap:9px;padding:13px 16px;font-weight:700;font-size:14.5px;color:var(--crimson-deep);border-bottom:1px solid var(--line-soft);background:#fdf3f4}
+  .lock-head .ic{color:var(--crimson)}
+  .lock-sub{margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--ink-soft);font-weight:400}
+  .lock-body{padding:14px 16px}
+  .lock-note{margin:0 0 11px;font-size:13px;color:var(--ink-soft)}
+  .lock-row{display:flex;gap:9px;flex-wrap:wrap}
+  .lock-row input{flex:1 1 160px;min-width:140px;font-family:var(--sans);font-size:16px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:11px 13px;min-height:46px}
+  .lock-row input:focus{outline:none;border-color:var(--slate);box-shadow:0 0 0 3px rgba(52,80,122,.14)}
+  .lock-row .btn{flex:0 0 auto}
+  .lock-err{margin:9px 2px 0;font-size:12.5px;color:var(--crimson);font-family:var(--mono)}
+  .lock-reveal{padding:14px 16px}
+  .hintlist{margin:6px 0 0;padding-left:1.1em} .hintlist li{margin:6px 0;color:var(--ink);font-size:13.5px}
+  table.verdict{border-collapse:collapse;width:100%;font-size:12.5px;margin:8px 0}
+  table.verdict th,table.verdict td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  table.verdict th{background:var(--card-2);color:var(--slate);font-family:var(--mono);font-size:11px;font-weight:500}
+  .stamp{display:inline-block;font-family:var(--serif);font-weight:800;color:var(--crimson);border:2px solid var(--crimson);border-radius:6px;padding:0 6px;transform:rotate(-6deg);font-size:12px}
+  .ok-mark{color:var(--ok);font-weight:700}
+  .think li{margin:8px 0;color:var(--ink);font-size:13.5px}
+  code.kw{font-family:var(--mono);color:var(--crimson-deep);background:#fbeef0;border-radius:4px;padding:0 4px;font-size:.92em}
+
+  /* ---------- RIGHT: workbench (pinned console + scrolling results) ---------- */
+  .workbench{flex:0 0 auto;padding:14px 22px 0}
+  .console{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .schema{display:flex;flex-wrap:wrap;gap:7px;padding:12px 13px 4px}
+  .schema .slabel{flex-basis:100%;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-soft);margin:0 2px 2px}
+  .schema button{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--card-2);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-height:36px;cursor:pointer;transition:.14s;text-align:left;line-height:1.35}
+  .schema button:hover{border-color:var(--slate);background:#fff}
+  .schema button b{color:var(--slate-deep)}
+  .schema button .c{color:var(--ink-soft);font-size:10px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;padding:6px 13px 4px}
+  .chips .grp-label{flex-basis:100%;font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-soft);margin:6px 2px 0}
+  .chip{font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--card-2);border:1px solid var(--line);border-radius:999px;padding:8px 13px;min-height:38px;cursor:pointer;transition:.14s;display:inline-flex;align-items:center;gap:5px}
+  .chip:hover{border-color:var(--slate);background:#fff} .chip:active{transform:translateY(1px)}
+  .chip .k{color:var(--slate);margin-left:2px;opacity:.85}
+  .editor-wrap{padding:10px 13px 14px}
+  label.field{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.13em;color:var(--ink-soft);margin:4px 2px 7px}
+  textarea{width:100%;min-height:96px;resize:vertical;font-family:var(--mono);font-size:15px;line-height:1.6;color:#1b2840;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px 13px;caret-color:var(--crimson);transition:background .5s}
+  textarea:focus{outline:none;border-color:var(--slate);box-shadow:0 0 0 3px rgba(52,80,122,.14)}
+  textarea.flash{background:#fff3d6}
+  .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+  .btn{font-family:var(--sans);font-weight:700;font-size:14.5px;border-radius:10px;padding:11px 20px;min-height:46px;cursor:pointer;border:1px solid transparent;transition:.14s}
+  .btn-run{background:linear-gradient(180deg,#d2233b,#b3132b);color:#fff;box-shadow:0 4px 12px rgba(165,15,40,.3)}
+  .btn-run:hover{filter:brightness(1.05)} .btn-run:active{transform:translateY(1px)}
+  .btn-run:disabled{opacity:.5;cursor:wait;filter:grayscale(.4)}
+  .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink-soft)}
+  .btn-ghost:hover{border-color:var(--slate);color:var(--slate)}
+
+  .results-wrap{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;min-height:0;padding:14px 22px 24px}
+  .rlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--slate);margin:2px 2px 9px}
+  .result-card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden}
+  .msg{font-size:13.5px;color:var(--ink-soft);font-family:var(--mono);padding:16px}
+  .msg.error{color:#b22138} .msg.error b{color:var(--crimson)}
+  .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.r{border-collapse:collapse;width:100%;font-size:13px;min-width:max-content}
+  table.r th{font-family:var(--mono);font-size:11.5px;text-align:left;color:var(--slate-deep);background:var(--card-2);padding:9px 13px;border-bottom:1px solid var(--line);white-space:nowrap;position:sticky;top:0}
+  table.r td{padding:9px 13px;border-bottom:1px solid var(--line-soft);color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
+  table.r tr:last-child td{border-bottom:none}
+  table.r tbody tr:hover td{background:#f4f8fd}
+  .nullval{font-family:var(--mono);font-size:10.5px;color:#8893a3;background:var(--card-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .rowcount{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);padding:9px 13px;border-top:1px solid var(--line-soft)}
+
+  a{color:var(--slate)}
+
+  /* ---------- NARROW fallback (not the target, but graceful) ---------- */
+  @media (max-width:899px){
+    .app{height:auto}
+    header{flex-wrap:wrap}.statusbar{margin-left:0;flex-basis:100%;margin-top:4px}
+    .panes{display:block}
+    .pane.left{max-width:none;border-right:none;overflow:visible}
+    .pane.right{overflow:visible}
+    .pane.left .pane-head,.pane.right .pane-head{position:static}
+    .workbench{padding:14px 18px 0}
+    .results-wrap{overflow:visible;min-height:0;padding:14px 18px 40px}
+    table.r th{position:static}
+  }
+  @media (prefers-reduced-motion:reduce){.dot.loading{animation:none}textarea.flash{background:var(--field)}*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="seal" aria-hidden="true">紅</div>
+    <div class="htxt">
+      <p class="eyebrow">SQL Investigation File ・ 情報Ⅰ データベース</p>
+      <h1>紅の館の惨劇</h1>
+    </div>
+    <div class="statusbar"><span class="dot loading" id="dot"></span><span id="status">準備中…</span></div>
+  </header>
+
+  <div class="panes">
+
+    <!-- ===== 左：事件ファイル（読む） ===== -->
+    <div class="pane left">
+      <div class="pane-head">📖 事件ファイル</div>
+      <div class="left-body">
+
+        <section>
+          <div class="card case">
+            <h2>事件の概要</h2>
+            <p class="lead">ある嵐の夜、資産家 <b>西園寺 龍之介</b> が自室の「書斎」で遺体となって発見された。屋敷の入退室はすべて電子ログに記録され、容疑者の証言もデータベースに残っている。<b>嘘の証言をしている犯人</b>を、SQLで特定せよ。</p>
+            <dl class="facts">
+              <div class="fact"><dt>被害者</dt><dd>西園寺 龍之介（ID:1）</dd></div>
+              <div class="fact"><dt>死亡推定時刻</dt><dd>2023-10-31 21:00 前後</dd></div>
+              <div class="fact"><dt>現場</dt><dd>書斎（Room ID:101）</dd></div>
+              <div class="fact"><dt>状況</dt><dd>背後から襲われた痕跡</dd></div>
+            </dl>
+          </div>
+        </section>
+
+        <section>
+          <p class="sec-label">事前練習・3つの基本操作</p>
+          <h2>射影・選択・結合を試す</h2>
+          <p style="color:var(--ink-soft);font-size:13px;margin-top:-2px">各ボタンを押すと、右の捜査卓にクエリが入ります。実行して動きを確かめましょう。</p>
+          <div class="ops">
+            <div class="op">
+              <b class="t"><span class="tag">射影</span>ほしい「列」だけを取り出す</b>
+              <p>access_logs から room_id と entry_time の列だけを見る。</p>
+              <button class="sendbtn" data-q="SELECT room_id, entry_time&#10;FROM access_logs"><span class="arrow">▸</span> 捜査卓に送る</button>
+            </div>
+            <div class="op">
+              <b class="t"><span class="tag">選択</span>条件に合う「行」だけを取り出す</b>
+              <p>access_logs から room_id が 101 の行だけを見る（WHERE）。</p>
+              <button class="sendbtn" data-q="SELECT *&#10;FROM access_logs&#10;WHERE room_id = 101"><span class="arrow">▸</span> 捜査卓に送る</button>
+            </div>
+            <div class="op">
+              <b class="t"><span class="tag">結合</span>2つの「表」をつなげる</b>
+              <p>people と access_logs を共通の id でつなぐ。</p>
+              <button class="sendbtn" data-q="SELECT *&#10;FROM people, access_logs&#10;WHERE people.id = access_logs.id"><span class="arrow">▸</span> 捜査卓に送る</button>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <p class="sec-label">捜査の進め方</p>
+          <h2>3つのステップで矛盾を探す</h2>
+          <div class="steps">
+            <div class="step">
+              <span class="num">STEP 1</span>
+              <h3>容疑者の証言を確認する</h3>
+              <p>容疑者たちが「何と言っているか」を見る。people と testimonies を id で結合します。</p>
+              <button class="sendbtn" data-q="SELECT people.name, people.role, testimonies.statement&#10;FROM people, testimonies&#10;WHERE people.id = testimonies.id"><span class="arrow">▸</span> 捜査卓に送る</button>
+            </div>
+            <div class="step">
+              <span class="num">STEP 2</span>
+              <h3>犯行時刻の現場への出入りを確認する</h3>
+              <p>死亡推定時刻は 21:00。現場の書斎（room_id 101）に出入りした人物を、入室・退室の時刻つきで洗い出します。</p>
+              <button class="sendbtn" data-q="SELECT p.name, r.room_name, a.entry_time, a.exit_time&#10;FROM access_logs a, people p, rooms r&#10;WHERE a.id = p.id&#10;  AND a.room_id = r.room_id&#10;  AND r.room_id = 101"><span class="arrow">▸</span> 捜査卓に送る</button>
+            </div>
+            <div class="step">
+              <span class="num">STEP 3</span>
+              <h3>論理的矛盾（嘘）を暴く</h3>
+              <p>STEP1の「証言」と STEP2の「ログ（事実）」を照らし合わせる。「部屋から出ていない」と言ったのに、現場のログに残っている人物はいないか？</p>
+            </div>
+          </div>
+        </section>
+
+        <details class="tog">
+          <summary><span class="ic">💡</span> ヒント（時刻の読み方）<span class="tw">開く ▾</span></summary>
+          <div class="body">
+            <ul class="hintlist">
+              <li>STEP2 のクエリは「101号室に出入りした人 <b>全員</b>」を表示します。結果には <b>被害者本人</b>や <b>死亡時刻より後に入った人</b>も混ざっています。</li>
+              <li><code class="kw">entry_time</code>（入室）と <code class="kw">exit_time</code>（退室）をよく見て、<b>「21:00 ちょうどに現場にいたのは誰か？」</b>を時刻から判断しましょう。</li>
+              <li><code class="kw">exit_time</code> が <span class="nullval">NULL</span> の人は「退室の記録がない＝出ていない」という意味です。</li>
+              <li>証言（人の記憶）はあいまいでも、ログ（システムの記録）は正直です。両者が食い違う人を探しましょう。</li>
+            </ul>
+          </div>
+        </details>
+
+        <div class="card lockbox" id="lockbox">
+          <div class="lock-head"><span class="ic">🔒</span> 解答と解説<span class="lock-sub">先生用・パスワードで保護</span></div>
+          <div class="lock-body" id="lockForm">
+            <p class="lock-note">解答は暗号化して埋め込まれています。先生用パスワードを入力すると表示されます。</p>
+            <div class="lock-row">
+              <input id="pw" type="password" inputmode="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="パスワード">
+              <button class="btn btn-run" id="unlock">解錠</button>
+            </div>
+            <p class="lock-err" id="pwErr" hidden>パスワードが違います。</p>
+          </div>
+          <div class="lock-reveal" id="answerContent" hidden></div>
+        </div>
+
+        <section style="margin-top:20px">
+          <p class="sec-label">考察・情報Ⅰの学びとのつながり</p>
+          <ol class="think">
+            <li>犯人を暴いた決め手は「証言」と「ログ」のどちら？ それはなぜ？</li>
+            <li>現実でも入退室記録・通信ログ・アクセス履歴が日々記録されています。何の役に立ち、一方でどんな<b>プライバシー上の注意</b>が必要でしょうか？</li>
+            <li>もし犯人がログを書き換えられたら、この推理は成り立ちません。データを「改ざんされずに」保つことは、なぜ大切？</li>
+          </ol>
+        </section>
+
+      </div>
+    </div>
+
+    <!-- ===== 右：SQL捜査卓（操作）── エディタ固定 / 結果スクロール ===== -->
+    <div class="pane right">
+      <div class="pane-head">⌨️ SQL捜査卓</div>
+
+      <div class="workbench">
+        <div class="console">
+          <div class="schema">
+            <span class="slabel">テーブル（タップで全件表示）</span>
+            <button data-q="SELECT * FROM people"><b>people</b> <span class="c">id, name, role</span></button>
+            <button data-q="SELECT * FROM rooms"><b>rooms</b> <span class="c">room_id, room_name</span></button>
+            <button data-q="SELECT * FROM access_logs"><b>access_logs</b> <span class="c">log_id, id, room_id, entry_time, exit_time</span></button>
+            <button data-q="SELECT * FROM testimonies"><b>testimonies</b> <span class="c">id, statement</span></button>
+          </div>
+          <div class="chips">
+            <span class="grp-label">クエリ例</span>
+            <button class="chip" data-q="SELECT * FROM people">基本形 <span class="k">SELECT *</span></button>
+            <button class="chip" data-q="SELECT room_id, entry_time&#10;FROM access_logs">射影</button>
+            <button class="chip" data-q="SELECT *&#10;FROM access_logs&#10;WHERE room_id = 101">選択</button>
+            <button class="chip" data-q="SELECT *&#10;FROM people, access_logs&#10;WHERE people.id = access_logs.id">結合</button>
+            <button class="chip" data-q="SELECT people.name, people.role, testimonies.statement&#10;FROM people, testimonies&#10;WHERE people.id = testimonies.id">STEP1 <span class="k">証言</span></button>
+            <button class="chip" data-q="SELECT p.name, r.room_name, a.entry_time, a.exit_time&#10;FROM access_logs a, people p, rooms r&#10;WHERE a.id = p.id&#10;  AND a.room_id = r.room_id&#10;  AND r.room_id = 101">STEP2 <span class="k">現場ログ</span></button>
+          </div>
+          <div class="editor-wrap">
+            <label class="field" for="sql">SQL ── タップで例を読み込み、編集して実行（⌘/Ctrl + Enter でも実行）</label>
+            <textarea id="sql" spellcheck="false" autocapitalize="off" autocorrect="off" placeholder="ここに SQL を書く（例：SELECT * FROM people）">SELECT * FROM people</textarea>
+            <div class="actions">
+              <button class="btn btn-run" id="run">▶ 実行する</button>
+              <button class="btn btn-ghost" id="clear">クリア</button>
+              <button class="btn btn-ghost" id="reset">データを初期化</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-wrap" id="resultsWrap">
+        <p class="rlabel">結果</p>
+        <div class="result-card" id="resultCard">
+          <p class="msg" id="msg">準備ができたら「実行する」を押してください。</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+var SOURCES=[
+  {js:'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js',base:'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/'},
+  {js:'https://cdn.jsdelivr.net/npm/sql.js@1.14.0/dist/sql-wasm.js',base:'https://cdn.jsdelivr.net/npm/sql.js@1.14.0/dist/'},
+  {js:'https://unpkg.com/sql.js@1.14.0/dist/sql-wasm.js',base:'https://unpkg.com/sql.js@1.14.0/dist/'}
+];
+var SCHEMA=`
+CREATE TABLE people (id INT PRIMARY KEY, name VARCHAR(50), role VARCHAR(50));
+CREATE TABLE rooms (room_id INT PRIMARY KEY, room_name VARCHAR(50));
+CREATE TABLE access_logs (log_id INT PRIMARY KEY, id INT, room_id INT, entry_time DATETIME, exit_time DATETIME);
+CREATE TABLE testimonies (id INT, statement TEXT);
+INSERT INTO people VALUES
+(1,'西園寺 龍之介','主人(被害者)'),(2,'田中 執事','執事'),(3,'佐藤 メイド','メイド'),(4,'鈴木 甥','甥');
+INSERT INTO rooms VALUES
+(101,'書斎(現場)'),(102,'キッチン'),(103,'客室'),(104,'倉庫');
+INSERT INTO access_logs VALUES
+(1,1,101,'2023-10-31 19:00:00',NULL),
+(2,2,102,'2023-10-31 20:00:00','2023-10-31 21:30:00'),
+(3,3,104,'2023-10-31 20:30:00','2023-10-31 21:15:00'),
+(4,4,103,'2023-10-31 19:00:00','2023-10-31 20:45:00'),
+(5,4,101,'2023-10-31 20:55:00','2023-10-31 21:05:00'),
+(6,2,101,'2023-10-31 21:35:00','2023-10-31 21:40:00');
+INSERT INTO testimonies VALUES
+(2,'私は20時から21時半まで、ずっとキッチンで料理の仕込みをしていました。'),
+(3,'私は20時半から倉庫で在庫確認をしていました。誰も見ていませんが...'),
+(4,'僕は20時以降、ずっと客室で寝ていたよ。部屋からは一歩も出ていない。');
+`;
+var db=null,dot=document.getElementById('dot'),statusEl=document.getElementById('status'),runBtn=document.getElementById('run');
+function setStatus(s,t){dot.className='dot '+s;statusEl.textContent=t;}
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=function(){rej(new Error('x'));};document.head.appendChild(s);});}
+async function boot(){
+  for(var i=0;i<SOURCES.length&&!window.initSqlJs;i++){try{await loadScript(SOURCES[i].js);}catch(e){}}
+  if(!window.initSqlJs){setStatus('err','読み込み失敗（校内でCDNが遮断されている可能性）');return;}
+  var SQL=null;
+  for(var j=0;j<SOURCES.length;j++){try{SQL=await window.initSqlJs({locateFile:(function(b){return function(f){return b+f;};})(SOURCES[j].base)});if(SQL)break;}catch(e){}}
+  if(!SQL){setStatus('err','DB機能の読み込み失敗。GitHub Pages 設置で安定します。');return;}
+  window._SQL=SQL;buildDB();setStatus('ready','準備完了');runBtn.disabled=false;
+}
+function buildDB(){if(db){try{db.close();}catch(e){}}db=new window._SQL.Database();db.run(SCHEMA);}
+
+var resultCard=document.getElementById('resultCard'),resultsWrap=document.getElementById('resultsWrap');
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function showMsg(t,e){resultCard.innerHTML='<p class="msg'+(e?' error':'')+'">'+t+'</p>';}
+function renderResults(rs){
+  var h='';
+  rs.forEach(function(r){
+    h+='<div class="tscroll"><table class="r"><thead><tr>';
+    r.columns.forEach(function(c){h+='<th>'+escapeHtml(c)+'</th>';});
+    h+='</tr></thead><tbody>';
+    r.values.forEach(function(row){h+='<tr>';row.forEach(function(v){h+='<td>'+(v===null?'<span class="nullval">NULL</span>':escapeHtml(v))+'</td>';});h+='</tr>';});
+    h+='</tbody></table></div><p class="rowcount">'+r.values.length+' 件の記録</p>';
+  });
+  resultCard.innerHTML=h;
+  resultsWrap.scrollTop=0;
+}
+function friendlyError(m){m=String(m);var hint='';
+  if(/no such table/i.test(m))hint='テーブル名が違うかも（people / rooms / access_logs / testimonies）。';
+  else if(/no such column/i.test(m))hint='列名が違うかも。スペルを確認しましょう。';
+  else if(/syntax error/i.test(m))hint='文法エラー。カンマや WHERE の位置、スペルを確認しましょう。';
+  return '<b>エラー：</b>'+escapeHtml(m)+(hint?'<br>↳ '+hint:'');}
+function runQuery(){
+  if(!db){showMsg('まだ準備中です。少し待ってからお試しください。');return;}
+  var sql=document.getElementById('sql').value.trim();
+  if(!sql){showMsg('クエリが空です。上のボタンで例を読み込むか、SQLを入力してください。');return;}
+  var rs;try{rs=db.exec(sql);}catch(e){showMsg(friendlyError(e.message),true);return;}
+  if(!rs.length){showMsg('実行しました（表示できる結果はありません）。SELECT 文で結果が表になります。');return;}
+  renderResults(rs);
+}
+function setQuery(q){
+  var ta=document.getElementById('sql');
+  ta.value=q;ta.classList.remove('flash');void ta.offsetWidth;ta.classList.add('flash');
+  setTimeout(function(){ta.classList.remove('flash');},600);
+  ta.focus();ta.setSelectionRange(q.length,q.length);
+}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-q]');if(b){e.preventDefault();setQuery(b.getAttribute('data-q'));}});
+runBtn.addEventListener('click',runQuery);
+document.getElementById('clear').addEventListener('click',function(){var t=document.getElementById('sql');t.value='';t.focus();});
+document.getElementById('reset').addEventListener('click',function(){if(window._SQL){buildDB();showMsg('捜査資料を初期状態に戻しました。');}});
+document.getElementById('sql').addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runQuery();}});
+document.querySelectorAll('details.tog').forEach(function(d){d.addEventListener('toggle',function(){var tw=d.querySelector('.tw');if(tw)tw.textContent=d.open?'閉じる ▴':'開く ▾';});});
+/* ---------- PW-protected answer (client-side decrypt) ---------- */
+function _sha256(bytes){
+  function rotr(n,x){return (x>>>n)|(x<<(32-n));}
+  var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  var l=bytes.length,withOne=l+1,k=(56-withOne%64+64)%64,total=withOne+k+8,m=new Uint8Array(total);
+  m.set(bytes,0);m[l]=0x80;var bitLen=l*8;m[total-4]=(bitLen>>>24)&0xff;m[total-3]=(bitLen>>>16)&0xff;m[total-2]=(bitLen>>>8)&0xff;m[total-1]=bitLen&0xff;
+  var w=new Array(64),i;
+  for(var off=0;off<total;off+=64){
+    for(i=0;i<16;i++){w[i]=(m[off+i*4]<<24)|(m[off+i*4+1]<<16)|(m[off+i*4+2]<<8)|(m[off+i*4+3]);}
+    for(i=16;i<64;i++){var s0=rotr(7,w[i-15])^rotr(18,w[i-15])^(w[i-15]>>>3);var s1=rotr(17,w[i-2])^rotr(19,w[i-2])^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0;}
+    var a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+    for(i=0;i<64;i++){var S1=rotr(6,e)^rotr(11,e)^rotr(25,e);var ch=(e&f)^(~e&g);var t1=(h+S1+ch+K[i]+w[i])|0;var S0=rotr(2,a)^rotr(13,a)^rotr(22,a);var maj=(a&b)^(a&c)^(b&c);var t2=(S0+maj)|0;h=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0;}
+    H[0]=(H[0]+a)|0;H[1]=(H[1]+b)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+  }
+  var hex='';for(i=0;i<8;i++){hex+=('00000000'+(H[i]>>>0).toString(16)).slice(-8);}return hex;
+}
+function sha256hex(s){return _sha256(new TextEncoder().encode(s));}
+function hexToBytes(h){var a=new Uint8Array(h.length/2);for(var i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16);return a;}
+var ANSWER_BLOB={salt:"8dd5ea1d54b2ded6",check:"dc64d87da47f33c3fe5d05df56a8d3ca20cb3496e0068cc20263501de881d0fc",iter:1200,ct:"dwzTecrzsuPHRKmSisMlPn/BH7fr4XzcN2nMLDOllCpnqZ4lUjTxX3mwPOyn0WeTPRREkBwxyj7vaQ2ASCIDi02oBbUUK8KRmqMFZG3VxBoGCGVj2HE0Y8J0aECICU+fAzFLkQCmKP6L4thKdoc5L79cjJU0AwnewLh66FcKzviM7izmPNIPcL14u+GWvCwur3GQlwgUP0ODkzpzt4MtBmhjXzqLf0WIKtcnyc5QCsqE+VwiixecGqn1YaLwTiGN6XbqdQCTGTCKIH0jsNO5cpD8lfyO9IKLTdcQHgDaGKIDNH34Bckrl/NhDmtOOlDwUAU8OH23/y2EEZ+l7J7vKRGU/dLoLDaX285xDGldmw9xbXsCJ2KI2pgxgwcloZD00ji78/wt43nL3iJMVCOKpLCs/Tei5wxuaVQCA2n4P2gLYoEzxnfCtvijOYKKtyRoVBsoPDptJcZ2XszlymXIqoLkyk7ulTGttZVX40hZgPqTCTlhVqw6yiC3wakpE62qt4jGUJqGlEBjVxmEoAjiYF7LrWXFdHzxwXxrG+cupOfMLomhI6CJzzigN742OOi/eU72xb263tPW96gclOi8DYSyRHBk0MiO/9uPBHWS4jl0yzezgumm0NLTjnFGqXyLW6NrO0fZpiH1hfK8rbigISuVPJvvxvmja15NA7MLpMY+Hn8VGvK55a26QCPrDbLfTEJ1ShUem1K0OylybGLnsKfFDWpqesKefMou+ZmTL2SB5uI351W+pC212y7vMx3RMhhpF8e16mHo9ZA/nlMUw3UGxO1LYGLRJ2A6ZIuNstpLIwHD1vqFThdR9Mc5HEuggLLqQPpnE4LhQZuyATYGpfqX2zYVmCs84M+F+Z5/QeJlcp1gQR/k6ZPPmxtdL4xOiOV8F7YlltalteSgvL/eIMGaVoYKx49a0YSKbBczyezlN/8fawo5jM6nSGtsDuvGb10lr91IO69wYYxge6DPMkoMXR3HP3HPuds9GvE4B5vlTDke2kWF8aMOXbiZq2gvgVyb44EKsxpwIEyGib7O9lJj2q0SKXNnHkYGymKjs1s8HU9em/w3cGomptspJGwSPKLNzQypX/5qPIJazRbSG+di97IbOxRjbpQUbsrpnFysY7CVKqSvppCFYH+C/HHIFIlHzGUEuRbubE2LzhT1Bccy1iu0xYg/Rpxev+MJNpGxw4x4D3p6TQpBp6+riS+2UwPxjBi/N+W9N2rLpdWJSVGMl0GsN0MrcAbZwsbDjeOLylkn98lGXD/n33bmjf8QOkdITWMoyuH44Ux4seKwvqO/7xzls9tBUiwH1miK+xgwijcgC0Rqll9L1PRL20ZBtxygvpMqj45DRRX6lWXhcc+js3eNUTbdRrMkdOlAmrCtZD0/Yk+iQO0FudBjIzf5Y2wQUH71zWj0yo5h1WPT6Q3tbtTj6BLvNckWQLslpHaxW9MGnm/KHd0Wr0XlcgZPKvdFaXbU3qF7eJ0APaxq+ESAZHonYqJUUF0fBp44cKFSY2n5PZytIpExDREF+g4xciZPwDCcX8YZi95KLXict/lv792dqiMrF9y22HPlGFF8UneJ9GGAPRbluA7zxXxqq0qM4yq+jJ8yt0p2kk9OUZIdkCuaNvwMqloxzzPWijVAeVVYw2GXB2IF/qO6oIkmA5H1+CNT58LI08qAIB4fcY4Va8TbNTs4uZTSPXbJhWuZRH5Ho42JSZZ7kZuTknNJh0qXhA5Yjt6K/Ys7USDsBSYHDjmk6mHWgJYDcVGsozWlCOwFRWrFliE7Gm7snA=="};
+function decryptAnswer(pw){
+  var b=ANSWER_BLOB,key=sha256hex(pw+b.salt),k;
+  for(k=0;k<b.iter;k++){key=sha256hex(key+pw+b.salt);}
+  if(sha256hex(key+':check')!==b.check)return null;
+  var ct=Uint8Array.from(atob(b.ct),function(ch){return ch.charCodeAt(0);});
+  var out=new Uint8Array(ct.length),off=0,i=0;
+  while(off<ct.length){var blk=hexToBytes(sha256hex(key+':'+i));for(var j=0;j<blk.length&&off<ct.length;j++){out[off]=ct[off]^blk[j];off++;}i++;}
+  return new TextDecoder().decode(out);
+}
+(function(){
+  var btn=document.getElementById('unlock'),input=document.getElementById('pw'),err=document.getElementById('pwErr');
+  function attempt(){
+    var html=decryptAnswer(input.value);
+    if(html===null){err.hidden=false;input.select();return;}
+    err.hidden=true;
+    var c=document.getElementById('answerContent');
+    c.innerHTML=html;c.hidden=false;
+    document.getElementById('lockForm').style.display='none';
+    var sub=document.querySelector('#lockbox .lock-sub');if(sub)sub.textContent='解錠済み';
+  }
+  btn.addEventListener('click',attempt);
+  input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();attempt();}});
+})();
+
+runBtn.disabled=true;boot();
+</script>
+</body>
+</html>
