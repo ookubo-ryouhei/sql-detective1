@@ -153,7 +153,7 @@
   .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink-soft)}
   .btn-ghost:hover{border-color:var(--slate);color:var(--slate)}
 
-  .results-wrap{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;min-height:0;padding:14px 22px 24px}
+  .results-wrap{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;min-height:0;padding:14px 22px;padding-bottom:calc(32px + env(safe-area-inset-bottom))}
   .rlabel{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--slate);margin:2px 2px 9px}
   .result-card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);overflow:hidden}
   .msg{font-size:13.5px;color:var(--ink-soft);font-family:var(--mono);padding:16px}
@@ -178,7 +178,7 @@
     .pane.right{overflow:visible}
     .pane.left .pane-head,.pane.right .pane-head{position:static}
     .workbench{padding:14px 18px 0}
-    .results-wrap{overflow:visible;min-height:0;padding:14px 18px 40px}
+    .results-wrap{overflow:visible;min-height:0;padding:14px 18px;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
     table.r th{position:static}
   }
   @media (prefers-reduced-motion:reduce){.dot.loading{animation:none}textarea.flash{background:var(--field)}*{transition:none!important}}
